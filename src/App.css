@@ -1,0 +1,1324 @@
+/* =========================================================
+   COCO COLLECTABLES
+   �啣��� App.css
+========================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Noto Sans TC",
+    "PingFang TC",
+    "Microsoft JhengHei",
+    sans-serif;
+
+  color: #30334a;
+  background: #f7f8fc;
+}
+
+html {
+  margin: 0;
+  padding: 0;
+  background: #f7f8fc;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-width: 320px;
+  background:
+    linear-gradient(
+      180deg,
+      #fbfcff 0%,
+      #f4f6fb 100%
+    );
+}
+
+button,
+input {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+
+/* =========================================================
+   �嗪���蕭嚙�
+========================================================= */
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+.app {
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 0 28px 60px;
+}
+
+
+/* =========================================================
+   Header Banner
+========================================================= */
+
+.hero-banner {
+  width: 100%;
+  margin: 0 auto 22px;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  overflow: hidden;
+  border-radius: 0 0 24px 24px;
+}
+
+.hero-banner img {
+  display: block;
+
+  width: 100%;
+  max-width: 1450px;
+
+  height: auto;
+
+  object-fit: contain;
+}
+
+
+/* =========================================================
+   嚙踢�荔蕭嚙踝蕭
+========================================================= */
+
+.search-area {
+  width: 100%;
+  margin: 18px auto 12px;
+}
+
+.search-box {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+
+  min-height: 68px;
+
+  padding: 0 22px;
+
+  background: white;
+
+  border: 2px solid #e0e2e9;
+  border-radius: 22px;
+
+  box-shadow:
+    0 8px 24px rgba(60, 70, 100, 0.06);
+}
+
+.search-icon {
+  flex: 0 0 auto;
+
+  font-size: 32px;
+
+  margin-right: 15px;
+}
+
+.search-box input {
+  width: 100%;
+
+  border: 0;
+  outline: 0;
+
+  background: transparent;
+
+  color: #36384b;
+
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.search-box input::placeholder {
+  color: #aaaab5;
+}
+
+
+/* =========================================================
+   �冽�𩤃蕭�舀０嚙�
+========================================================= */
+
+.inventory-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+
+  margin: 20px 0 28px;
+
+  color: #777889;
+}
+
+.summary-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.summary-number {
+  font-size: 46px;
+  line-height: 1;
+
+  font-weight: 900;
+
+  color: #555467;
+}
+
+.summary-label {
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.summary-divider {
+  color: #c8c8d0;
+  font-size: 26px;
+}
+
+.summary-text {
+  font-size: 20px;
+  font-weight: 500;
+
+  color: #8c8d9b;
+}
+
+
+/* =========================================================
+   Loading
+========================================================= */
+
+.loading {
+  min-height: 300px;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  color: #777889;
+
+  font-size: 18px;
+}
+
+.loading-mascot {
+  font-size: 52px;
+}
+
+
+/* =========================================================
+   嚙賤�嚙� Grid
+========================================================= */
+
+.cards {
+  width: 100%;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr));
+
+  gap: 22px;
+
+  align-items: start;
+}
+
+
+/* =========================================================
+   嚙賣��琜蕭�𩤃蕭
+========================================================= */
+
+.card {
+  width: 100%;
+  min-width: 0;
+
+  overflow: hidden;
+
+  background: white;
+
+  border: 1px solid #e5e6eb;
+
+  border-radius: 20px;
+
+  box-shadow:
+    0 7px 22px rgba(55, 65, 90, 0.09);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+
+  box-shadow:
+    0 12px 30px rgba(55, 65, 90, 0.15);
+}
+
+
+/* =========================================================
+   嚙賤�嚙踝蕭艞�嚙�
+========================================================= */
+
+.card-image {
+  width: 100%;
+
+  /* �脲�嚙踝蕭�賅��麯臐�嚙賡�韐嘅蕭嚙踝蕭膍�蕭嚙� */
+  aspect-ratio: auto !important;
+
+  height: auto !important;
+  min-height: 0;
+
+  overflow: visible;
+
+  background: #f0f1f4;
+}
+
+.card-image img {
+  display: block;
+
+  width: 100%;
+  height: auto !important;
+
+  max-width: 100%;
+  max-height: none;
+
+  object-fit: contain;
+  object-position: center;
+
+  /* ���嚙踝蕭嚙賭�嚙賢�嚙踝蕭閫�蕭嚙踝蕭嚙賣���撞 */
+  position: static;
+}
+
+
+/* =========================================================
+   嚙賤�嚙賡�嚙踝蕭
+========================================================= */
+
+.card-info {
+  width: 100%;
+  min-width: 0;
+
+  padding: 14px;
+}
+
+.card-info h2 {
+  margin: 0;
+
+  min-height: 34px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+
+  color: #555466;
+
+  font-size: 20px;
+  line-height: 1.3;
+
+  font-weight: 800;
+
+  word-break: break-word;
+}
+
+
+/* =========================================================
+   PSA / �遲尬殷蕭 / �文䔄嚙� / 嚙踝蕭嚙踝蕭
+   嚙踝蕭嚙賢�嚙�
+   PSA 嚙踝蕭 SR 嚙踝蕭 嚙賭漱嚙� 嚙踝蕭 嚙賢�瞉�
+========================================================= */
+
+.badges {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-wrap: wrap;
+
+  gap: 6px;
+
+  margin: 10px 0 9px;
+}
+
+.badge {
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  height: 34px;
+
+  min-width: 42px;
+
+  padding: 0 11px;
+
+  border-radius: 999px;
+
+  font-size: 14px;
+  line-height: 1;
+
+  font-weight: 800;
+
+  white-space: nowrap;
+}
+
+
+/* 嚙賜��� */
+
+.badge.company {
+  min-width: 38px;
+  height: 30px;
+
+  padding: 0 9px;
+
+  background: #eef1f6;
+  color: #62697a;
+
+  font-size: 12px;
+
+  border: 1px solid #dfe3eb;
+}
+
+
+/* �遲尬殷蕭 */
+
+.badge.type {
+  background: #7b3aed;
+  color: white;
+}
+
+
+/* �文䔄嚙� */
+
+.badge.lang {
+  background: #2874df;
+  color: white;
+}
+
+
+/* 嚙賢�瞉� */
+
+.badge.stock {
+  background: #16a34a;
+  color: white;
+}
+
+
+/* 嚙賣��� */
+
+.badge.sold {
+  background: #ef4444;
+  color: white;
+}
+
+
+/* =========================================================
+   PSA �箏�嚙�
+========================================================= */
+
+.cert {
+  width: 100%;
+
+  margin: 4px 0 8px;
+
+  text-align: center;
+
+  color: #555466;
+
+  font-size: 21px;
+  line-height: 1.25;
+
+  font-weight: 900;
+
+  letter-spacing: 0.5px;
+
+  overflow-wrap: anywhere;
+}
+
+.cert strong {
+  font-weight: 900;
+}
+
+
+/* =========================================================
+   嚙賜�嚙踝蕭皛刻�
+========================================================= */
+
+.title {
+  width: 100%;
+  min-height: 74px;
+
+  display: flex;
+
+  align-items: flex-start;
+  justify-content: center;
+
+  padding: 2px 4px;
+
+  text-align: center;
+
+  color: #858592;
+
+  font-size: 14px;
+  line-height: 1.45;
+
+  font-weight: 500;
+
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   嚙踢�瑟摹嚙賢��ｇ蕭嚙賣�嚙�
+========================================================= */
+
+.price-box {
+  width: 100%;
+  max-width: 100%;
+
+  margin-top: 8px;
+
+  padding: 14px 12px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f8fbff 0%,
+      #f1f6ff 100%
+    );
+
+  border: 1px solid #d9e3f5;
+
+  border-radius: 17px;
+
+  overflow: hidden;
+}
+
+
+/* PSA ��甅嚙� */
+
+.price-header {
+  width: 100%;
+
+  margin-bottom: 9px;
+
+  text-align: center;
+
+  color: #2d5cab;
+
+  font-size: 18px;
+
+  font-weight: 900;
+}
+
+
+/* 嚙賢��ｇ蕭嚙� */
+
+.price-row {
+  width: 100%;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 8px;
+
+  min-width: 0;
+}
+
+
+/* �諹�嚙踝蕭嚙踝蕭 */
+
+.price-row span {
+  flex: 1 1 auto;
+
+  min-width: 0;
+
+  color: #777b8b;
+
+  font-size: 13px;
+
+  font-weight: 600;
+
+  line-height: 1.3;
+
+  white-space: nowrap;
+}
+
+
+/* 嚙賢鯏嚙踝蕭撖噼� */
+
+.price-row strong {
+  flex: 0 0 auto;
+
+  max-width: 52%;
+
+  color: #1b326c;
+
+  font-size: 17px;
+
+  font-weight: 900;
+
+  line-height: 1.2;
+
+  text-align: right;
+
+  white-space: nowrap;
+}
+
+
+/* 嚙踝蕭嚙質亚嚙� */
+
+.price-divider {
+  width: 100%;
+  height: 1px;
+
+  margin: 9px 0;
+
+  background: #d6deed;
+}
+
+
+/* =========================================================
+   嚙賭漲嚙踝蕭艞�瞍�
+========================================================= */
+
+.shop-button {
+  width: 100%;
+  height: 46px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  margin-top: 12px;
+
+  padding: 0 8px;
+
+  border-radius: 12px;
+
+  background: #2874df;
+
+  color: white;
+
+  text-decoration: none;
+
+  font-size: 14px;
+
+  font-weight: 800;
+
+  white-space: nowrap;
+
+  transition: background 0.2s ease;
+}
+
+.shop-button:hover {
+  background: #175dc7;
+}
+
+.shop-button.disabled {
+  background: #d9dee8;
+  color: #777f90;
+}
+
+
+/* =========================================================
+   嚙賭漲嚙踝蕭�𩤃蕭
+========================================================= */
+
+.button {
+  width: 100%;
+  min-height: 48px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  margin-top: 10px;
+
+  padding: 0 8px;
+
+  border: 0;
+
+  border-radius: 13px;
+
+  background: #286ee5;
+
+  color: white;
+
+  text-decoration: none;
+
+  font-size: 15px;
+
+  font-weight: 800;
+
+  white-space: nowrap;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.button:hover {
+  background: #175bc9;
+
+  transform: translateY(-1px);
+}
+
+.button.disabled {
+  background: #dce1e9;
+  color: #777f8c;
+
+  cursor: default;
+}
+
+
+/* =========================================================
+   �諹��賂蕭嚙�
+========================================================= */
+
+.sold-card {
+  opacity: 0.92;
+}
+
+.sold-text {
+  width: 100%;
+
+  min-height: 48px;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  margin-top: 10px;
+
+  border-radius: 13px;
+
+  background: #ef4444;
+
+  color: white;
+
+  font-size: 15px;
+
+  font-weight: 800;
+}
+
+
+/* =========================================================
+   嚙賣�嚙踝蕭嚙�
+========================================================= */
+
+.empty {
+  min-height: 300px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  color: #777889;
+
+  text-align: center;
+}
+
+.empty-mascot {
+  font-size: 60px;
+}
+
+.empty h2 {
+  margin: 10px 0 4px;
+
+  color: #555466;
+}
+
+.empty p {
+  margin: 0;
+
+  color: #9293a0;
+}
+
+
+/* =========================================================
+   Footer
+========================================================= */
+
+.footer {
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  margin-top: 55px;
+
+  padding: 25px 0;
+
+  border-top: 1px solid #e3e5eb;
+
+  color: #777889;
+
+  text-align: center;
+}
+
+.footer > div:first-child {
+  font-size: 30px;
+}
+
+.footer strong {
+  color: #555466;
+
+  font-size: 16px;
+}
+
+.footer p {
+  margin: 3px 0 0;
+
+  font-size: 13px;
+}
+
+
+/* =========================================================
+   �笔鱓頦�
+========================================================= */
+
+@media (max-width: 1200px) {
+
+  .app {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .cards {
+    grid-template-columns:
+      repeat(4, minmax(0, 1fr));
+  }
+
+}
+
+
+/* =========================================================
+   �㰘版嚙賣��株�
+========================================================= */
+
+@media (max-width: 950px) {
+
+  .cards {
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+  }
+
+  .summary-number {
+    font-size: 38px;
+  }
+
+  .summary-label {
+    font-size: 20px;
+  }
+
+  .summary-text {
+    font-size: 17px;
+  }
+
+}
+
+
+/* =========================================================
+   嚙踢坎莎蕭
+========================================================= */
+
+@media (max-width: 700px) {
+
+  .app {
+    padding: 0 12px 40px;
+  }
+
+  .hero-banner {
+    margin-bottom: 14px;
+
+    border-radius: 0 0 16px 16px;
+  }
+
+  .search-box {
+    min-height: 58px;
+
+    padding: 0 15px;
+
+    border-radius: 17px;
+  }
+
+  .search-icon {
+    font-size: 25px;
+
+    margin-right: 9px;
+  }
+
+  .search-box input {
+    font-size: 16px;
+  }
+
+  .inventory-summary {
+    gap: 8px;
+
+    margin: 16px 0 20px;
+  }
+
+  .summary-number {
+    font-size: 32px;
+  }
+
+  .summary-label {
+    font-size: 17px;
+  }
+
+  .summary-divider {
+    font-size: 20px;
+  }
+
+  .summary-text {
+    font-size: 14px;
+  }
+
+  .cards {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+
+    gap: 12px;
+  }
+
+  .card {
+    border-radius: 15px;
+  }
+
+  .card-info {
+    padding: 10px;
+  }
+
+  .card-info h2 {
+    font-size: 17px;
+  }
+
+  .badge {
+    height: 29px;
+
+    min-width: 34px;
+
+    padding: 0 8px;
+
+    font-size: 11px;
+  }
+
+  .badge.company {
+    height: 26px;
+
+    padding: 0 7px;
+
+    font-size: 10px;
+  }
+
+  .cert {
+    font-size: 17px;
+  }
+
+  .title {
+    min-height: 65px;
+
+    font-size: 12px;
+  }
+
+  .price-box {
+    padding: 11px 9px;
+
+    border-radius: 14px;
+  }
+
+  .price-header {
+    font-size: 15px;
+  }
+
+  .price-row span {
+    font-size: 10px;
+  }
+
+  .price-row strong {
+    font-size: 14px;
+  }
+
+  .shop-button,
+  .button,
+  .sold-text {
+    min-height: 42px;
+    height: 42px;
+
+    font-size: 12px;
+
+    border-radius: 10px;
+  }
+
+}
+
+
+/* =========================================================
+   �痹蕭嚙踝蕭藃３嚙�
+========================================================= */
+
+@media (max-width: 400px) {
+
+  .cards {
+    grid-template-columns:
+      1fr;
+  }
+
+  .card-image {
+    aspect-ratio: 0.8;
+  }
+
+  .summary-text {
+    display: none;
+  }
+
+}
+
+/* =========================================================
+   嚙賤�嚙踝蕭皛刻�嚙賢鯏嚙� 嚙踝蕭 嚙踝蕭嚙踝蕭艞���
+   �堆蕭嚙踝蕭臐�嚙賣𪂹�改蕭
+   ========================================================= */
+
+.card-link-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 21px;
+  height: 21px;
+
+  margin-left: 4px;
+
+  color: inherit;
+  font-size: 15px;
+  line-height: 1;
+
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  text-decoration-style: none !important;
+
+  border: none !important;
+  border-bottom: none !important;
+
+  box-shadow: none !important;
+
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.card-link-icon:hover,
+.card-link-icon:focus,
+.card-link-icon:active,
+.card-link-icon:visited {
+  color: inherit;
+
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  text-decoration-style: none !important;
+
+  border: none !important;
+  border-bottom: none !important;
+
+  box-shadow: none !important;
+}
+
+.card-info h2 a,
+.card-info h2 a:hover,
+.card-info h2 a:focus,
+.card-info h2 a:active,
+.card-info h2 a:visited {
+  color: inherit;
+
+  text-decoration: none !important;
+  text-decoration-line: none !important;
+  text-decoration-style: none !important;
+
+  border: none !important;
+  border-bottom: none !important;
+
+  box-shadow: none !important;
+}
+
+
+/* =========================================================
+   �箏��∠�撠箏站嚗��璈��
+   - 獢峕�蝬剜��桀�瞍�漁��𤐄摰𡁻�摨�
+   - �𣇉�摰峕㟲憿舐內嚗䔶�鋆��
+========================================================= */
+
+.card {
+  height: 920px;
+  min-height: 920px;
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+}
+
+.card-image {
+  flex: 0 0 430px;
+
+  width: 100%;
+  height: 430px !important;
+  min-height: 430px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+  aspect-ratio: auto !important;
+}
+
+.card-image img {
+  display: block;
+
+  width: 100%;
+  height: 100% !important;
+
+  max-width: 100%;
+  max-height: 100%;
+
+  object-fit: contain;
+  object-position: center;
+
+  position: static;
+}
+
+.card-info {
+  flex: 1 1 auto;
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.card-info h2,
+.badges,
+.cert {
+  flex: 0 0 auto;
+}
+
+.title {
+  flex: 0 0 74px;
+  min-height: 74px;
+  max-height: 74px;
+  overflow: hidden;
+}
+
+.price-box {
+  margin-top: auto;
+  flex: 0 0 auto;
+}
+
+
+/* =========================================================
+   撟單踎
+========================================================= */
+
+@media (max-width: 950px) {
+
+  .card {
+    height: 900px;
+    min-height: 900px;
+  }
+
+  .card-image {
+    flex-basis: 410px;
+    height: 410px !important;
+    min-height: 410px;
+  }
+
+}
+
+
+/* =========================================================
+   �𧢲�
+   �� �漤�嚗�
+   - 銝滚��箏��∠�擃睃漲
+   - 銝滚��箏��𣇉� 350px
+   - �𣇉�靘嘥�憪𧢲�靘贝䌊�嗥葬��
+   - 摰峕㟲憿舐內���鋆�����霈𠰴耦
+========================================================= */
+
+@media (max-width: 700px) {
+
+  .app {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 10px 40px;
+  }
+
+  .cards {
+    width: 100%;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  .card {
+    width: 100%;
+    height: auto !important;
+    min-height: 0 !important;
+
+    display: flex;
+    flex-direction: column;
+
+    overflow: hidden;
+  }
+
+  .card-image {
+    width: 100%;
+
+    flex: 0 0 auto;
+
+    height: auto !important;
+    min-height: 0 !important;
+
+    display: block;
+
+    overflow: hidden;
+
+    aspect-ratio: auto !important;
+  }
+
+  .card-image img {
+    display: block;
+
+    width: 100%;
+    height: auto !important;
+
+    max-width: 100%;
+    max-height: none;
+
+    object-fit: contain;
+    object-position: center;
+
+    position: static;
+  }
+
+  .card-info {
+    width: 100%;
+    min-width: 0;
+
+    flex: none;
+
+    display: flex;
+    flex-direction: column;
+
+    padding: 10px;
+  }
+
+  .card-info h2 {
+    flex: none;
+  }
+
+  .badges,
+  .cert {
+    flex: none;
+  }
+
+  .title {
+    flex: none;
+
+    width: 100%;
+    min-height: 65px;
+    max-height: none;
+
+    overflow: visible;
+  }
+
+  .price-box {
+    width: 100%;
+    max-width: 100%;
+
+    margin-top: 8px;
+
+    flex: none;
+  }
+
+}
+
+
+/* =========================================================
+   頞���𧢲�
+   - 隞滨�靽脲��格�
+   - 銝滚�撘瑕��𣇉�擃睃漲
+========================================================= */
+
+@media (max-width: 400px) {
+
+  .app {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .card {
+    width: 100%;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .card-image {
+    width: 100%;
+    height: auto !important;
+    min-height: 0 !important;
+
+    aspect-ratio: auto !important;
+  }
+
+  .card-image img {
+    width: 100%;
+    height: auto !important;
+
+    max-width: 100%;
+    max-height: none;
+
+    object-fit: contain;
+  }
+
+  .summary-text {
+    display: none;
+  }
+
+}
