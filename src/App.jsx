@@ -5,60 +5,6 @@ const API =
   "https://script.google.com/macros/s/AKfycbwfbvdW7QDgbSug7JWCtBQr0ZFDOdkg8_oOzbXF-jO1GAYHMBCRNWBMjKZfU69Ovmbu/exec";
 
 
-/* =====================================
-   判斷是否為新入庫
-   購入日期在最近 14 天內
-===================================== */
-
-function isNewArrival(purchaseDate) {
-  if (!purchaseDate) {
-    return false;
-  }
-
-  const value = String(purchaseDate).trim();
-
-  let date = null;
-  const match = value.match(
-    /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/
-  );
-
-  if (match) {
-    date = new Date(
-      Number(match[1]),
-      Number(match[2]) - 1,
-      Number(match[3])
-    );
-  } else {
-    date = new Date(value);
-  }
-
-  if (!date || isNaN(date.getTime())) {
-    return false;
-  }
-
-  const today = new Date();
-
-  today.setHours(23, 59, 59, 999);
-
-  const fourteenDaysAgo = new Date(today);
-
-  fourteenDaysAgo.setDate(
-    today.getDate() - 14
-  );
-
-  fourteenDaysAgo.setHours(
-    0,
-    0,
-    0,
-    0
-  );
-
-  return (
-    date >= fourteenDaysAgo &&
-    date <= today
-  );
-}
-
 
 /* =====================================
    解析購入日期
@@ -659,6 +605,46 @@ function App() {
         String(card.status || "").trim() !== "售出"
     ).length;
 
+  /* =====================================
+     ⭐ 總漲／總跌金額
+     只計算目前畫面中的在庫卡片。
+     以成本價 → 最新成交價計算。
+  ===================================== */
+
+  const totalUpAmount = visibleCards.reduce(
+    (total, card) => {
+      if (
+        String(card.status || "").trim() === "售出"
+      ) {
+        return total;
+      }
+
+      const change = getPriceChange(card);
+
+      return change && change.change > 0
+        ? total + change.change
+        : total;
+    },
+    0
+  );
+
+  const totalDownAmount = visibleCards.reduce(
+    (total, card) => {
+      if (
+        String(card.status || "").trim() === "售出"
+      ) {
+        return total;
+      }
+
+      const change = getPriceChange(card);
+
+      return change && change.change < 0
+        ? total + Math.abs(change.change)
+        : total;
+    },
+    0
+  );
+
 
   /* =====================================
      畫面
@@ -1030,6 +1016,90 @@ function App() {
 
 
           {/* =====================================
+              ⭐ 總漲／總跌金額
+          ===================================== */}
+
+          <div
+            style={{
+              width: "min(100%, 1100px)",
+              margin: "4px auto 18px",
+              display: "grid",
+              gridTemplateColumns:
+                "repeat(2, minmax(0, 1fr))",
+              gap: "10px",
+              padding: "0 10px",
+              boxSizing: "border-box",
+            }}
+          >
+            <div
+              style={{
+                border: "1px solid #fecaca",
+                background:
+                  "linear-gradient(135deg, #fff7f7 0%, #fff1f2 100%)",
+                borderRadius: "14px",
+                padding: "12px 16px",
+                textAlign: "center",
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "13px",
+                  color: "#b91c1c",
+                  fontWeight: 800,
+                  marginBottom: "3px",
+                }}
+              >
+                🔴 總漲金額
+              </div>
+              <div
+                style={{
+                  fontSize: "24px",
+                  color: "#ef4444",
+                  fontWeight: 900,
+                  lineHeight: 1.2,
+                }}
+              >
+                +{formatPrice(totalUpAmount)}
+              </div>
+            </div>
+
+            <div
+              style={{
+                border: "1px solid #bbf7d0",
+                background:
+                  "linear-gradient(135deg, #f6fff8 0%, #ecfdf5 100%)",
+                borderRadius: "14px",
+                padding: "12px 16px",
+                textAlign: "center",
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "13px",
+                  color: "#15803d",
+                  fontWeight: 800,
+                  marginBottom: "3px",
+                }}
+              >
+                🟢 總跌金額
+              </div>
+              <div
+                style={{
+                  fontSize: "24px",
+                  color: "#16a34a",
+                  fontWeight: 900,
+                  lineHeight: 1.2,
+                }}
+              >
+                -{formatPrice(totalDownAmount)}
+              </div>
+            </div>
+          </div>
+
+
+          {/* =====================================
               目前區域
           ===================================== */}
 
@@ -1295,32 +1365,7 @@ function App() {
 
               const cert =
                 card.cert || "-";
-
-
-              /* 新入庫 */
-
-              const purchaseDate =
-                card.purchaseDate ||
-                card["購入日期"] ||
-                card.purchase_date ||
-                card.purchasedDate ||
-                "";
-
-
-              const isNew =
-                !isSold &&
-                isNewArrival(
-                  purchaseDate
-                );
-
-              /* ⭐ 促銷中：
-                 最新成交價 >= 成本價 × 1.15 */
-              const isPromo =
-                !isSold &&
-                isPromotion(card);
-
-
-              /* 成本價漲跌 */
+/* 成本價漲跌 */
 
               const priceChange =
                 !isSold
@@ -1449,101 +1494,7 @@ function App() {
                   ================================= */}
 
                   <div className="card-info">
-
-                    {/* 🔥 促銷中：放在圖片下方，並優先顯示 */}
-                    {isPromo && (
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          margin: "8px auto 4px",
-                          padding: "5px 13px",
-                          width: "fit-content",
-                          background:
-                            "linear-gradient(135deg, #ff5a5f 0%, #e53935 100%)",
-                          border: "2px solid #ffffff",
-                          borderRadius: "9px",
-                          color: "#ffffff",
-                          boxShadow:
-                            "0 2px 7px rgba(220,38,38,0.25)",
-                          lineHeight: 1,
-                          pointerEvents: "none",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "13px",
-                            fontWeight: 1000,
-                            letterSpacing: "0.3px",
-                          }}
-                        >
-                          🔥
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "12px",
-                            fontWeight: 900,
-                            marginLeft: "4px",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          促銷中
-                        </span>
-                      </div>
-                    )}
-
-                    {/* NEW 新入庫：放在圖片下方，不遮住 PSA 條碼 */}
-                    {isNew && (
-
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          margin: "8px auto 4px",
-                          padding: "5px 12px",
-                          width: "fit-content",
-                          background:
-                            "linear-gradient(135deg, #FFD84D 0%, #FFBE18 100%)",
-                          border: "2px solid #FFFFFF",
-                          borderRadius: "9px",
-                          color: "#174A91",
-                          boxShadow:
-                            "0 2px 6px rgba(0,0,0,0.16)",
-                          lineHeight: 1,
-                          pointerEvents: "none",
-                        }}
-                      >
-
-                        <span
-                          style={{
-                            fontSize: "13px",
-                            fontWeight: 1000,
-                            letterSpacing: "0.3px",
-                          }}
-                        >
-                          NEW!
-                        </span>
-
-                        <span
-                          style={{
-                            fontSize: "12px",
-                            fontWeight: 900,
-                            marginLeft: "5px",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          新入庫
-                        </span>
-
-                      </div>
-
-                    )}
-
-
-
-                    {/* =================================
+{/* =================================
                         標籤
                     ================================= */}
 
@@ -1791,6 +1742,36 @@ function App() {
                       </span>
 
                     </div>
+
+
+                    {/* =================================
+                        ⭐ 成本價
+                        直接標在每張卡片資訊區最上方
+                    ================================= */}
+
+                    {Number.isFinite(getCostPrice(card)) && (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: "fit-content",
+                          margin: "8px auto 6px",
+                          padding: "6px 13px",
+                          borderRadius: "999px",
+                          border: "1px solid #d4a72c",
+                          background:
+                            "linear-gradient(135deg, #fff9df 0%, #fff3bd 100%)",
+                          color: "#8a6500",
+                          fontSize: "15px",
+                          fontWeight: 900,
+                          lineHeight: 1.2,
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        💰 成本價&nbsp; {formatPrice(getCostPrice(card))}
+                      </div>
+                    )}
 
 
                     {/* =================================
