@@ -376,33 +376,35 @@ function App() {
   };
 
   /* =====================================
-     今日漲跌計算
+     成本價漲跌計算
   ===================================== */
 
   const getPriceChange = (card) => {
-    const latest = Number(card.latestPrice);
-    const yesterday = Number(card.yesterdayPrice);
+    const latest = getLatestPrice(card);
+    const cost = getCostPrice(card);
 
     if (
       !Number.isFinite(latest) ||
-      !Number.isFinite(yesterday) ||
-      yesterday <= 0
+      !Number.isFinite(cost) ||
+      cost <= 0
     ) {
       return null;
     }
 
-    const change = latest - yesterday;
-    const percent = (change / yesterday) * 100;
+    const change = latest - cost;
+    const percent = (change / cost) * 100;
 
     return {
       change,
       percent,
+      cost,
+      latest,
     };
   };
 
 
   /* =====================================
-     先做搜尋＋類型＋今日漲跌篩選
+     先做搜尋＋類型＋成本價漲跌篩選
 
      這一層是「兩個區域的共同篩選結果」。
      然後再分別計算收藏／購買數量，
@@ -831,7 +833,7 @@ function App() {
         </select>
 
 
-        {/* 今日漲跌幅排序 */}
+        {/* 成本價漲跌幅排序 */}
         <button
           type="button"
           onClick={() => handleSort("priceChangePercent")}
@@ -858,7 +860,7 @@ function App() {
               "0 3px 10px rgba(55,65,90,0.06)",
           }}
         >
-          今日漲跌幅{sortArrow("priceChangePercent")}
+          成本價漲跌幅{sortArrow("priceChangePercent")}
         </button>
 
         {/* 編號 */}
@@ -995,7 +997,7 @@ function App() {
             ? "近十筆成交價"
             : sortKey === "latestPrice"
             ? "最新成交價"
-            : "今日漲跌幅"
+            : "成本價漲跌幅"
         }{" "}
         {sortKey !== "purchaseDate" &&
           (sortDirection === "asc"
@@ -1318,7 +1320,7 @@ function App() {
                 isPromotion(card);
 
 
-              /* 今日漲跌 */
+              /* 成本價漲跌 */
 
               const priceChange =
                 !isSold
@@ -2049,7 +2051,7 @@ function App() {
 
 
                         {/* =================================
-                            今日漲跌
+                            成本價漲跌
                         ================================= */}
 
                         {priceChange && (
@@ -2097,35 +2099,23 @@ function App() {
 
                             <span>
                               {isUp
-                                ? "🔴 今日"
+                                ? "🔴 成本"
                                 : isDown
-                                ? "🟢 今日"
-                                : "⚪ 今日"}
+                                ? "🟢 成本"
+                                : "⚪ 成本"}
                             </span>
 
 
                             <span>
-                              {isUp
-                                ? "+"
-                                : ""}
-
-                              {formatPrice(
-                                priceChange.change
-                              )}
+                              {priceChange.change > 0 ? "+$" : priceChange.change < 0 ? "-$" : "$"}
+                              {Math.round(Math.abs(priceChange.change)).toLocaleString("en-US")}
 
                             </span>
 
 
                             <span>
-                              {isUp
-                                ? "+"
-                                : ""}
-
-                              {priceChange.percent.toFixed(
-                                2
-                              )}
-
-                              %
+                              {priceChange.percent > 0 ? "+" : ""}
+                              {priceChange.percent.toFixed(2)}%
                             </span>
 
                           </div>
@@ -2161,7 +2151,7 @@ function App() {
                                 "nowrap",
                             }}
                           >
-                            今日漲跌：尚無昨日資料
+                            成本價漲跌：尚無成本價資料
                           </div>
 
                         )}
