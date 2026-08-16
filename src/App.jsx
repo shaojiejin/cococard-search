@@ -99,97 +99,6 @@ function getPurchaseTime(card) {
 }
 
 
-
-/* =====================================
-   純卡圖裁切
-   - 只把原本 PSA slab 照片中的卡片區域
-     實際裁成新的圖片
-   - 因為 img.src 會變成裁切後的 data URL，
-     使用「另存圖片」時不會拿到原始整張 slab 圖
-===================================== */
-function CroppedCardImage({ src, alt }) {
-  const [croppedSrc, setCroppedSrc] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!src) {
-      setCroppedSrc(null);
-      return undefined;
-    }
-
-    const image = new Image();
-
-    image.onload = () => {
-      if (cancelled) return;
-
-      // 目前這批 slab 圖的卡片大致位於這個區域。
-      // 若之後需要微調，只改下面 4 個數字即可。
-      const CROP_X = 0.07;
-      const CROP_Y = 0.235;
-      const CROP_W = 0.86;
-      const TARGET_ASPECT = 63 / 88;
-
-      const sx = Math.round(image.naturalWidth * CROP_X);
-      const sw = Math.round(image.naturalWidth * CROP_W);
-      const sh = Math.round(sw / TARGET_ASPECT);
-      const sy = Math.round(image.naturalHeight * CROP_Y);
-
-      const canvas = document.createElement("canvas");
-      canvas.width = sw;
-      canvas.height = sh;
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-      ctx.drawImage(
-        image,
-        sx,
-        sy,
-        sw,
-        sh,
-        0,
-        0,
-        sw,
-        sh
-      );
-
-      if (!cancelled) {
-        setCroppedSrc(canvas.toDataURL("image/jpeg", 0.95));
-      }
-    };
-
-    image.onerror = () => {
-      if (!cancelled) setCroppedSrc(src);
-    };
-
-    // 只使用同網站的 public/images 圖片，
-    // 讓 Canvas 可以正常輸出裁切後圖片。
-    image.src = src;
-
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
-
-  return (
-    <img
-      src={croppedSrc || src}
-      alt={alt || "可可卡牌"}
-      style={{
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
-        objectPosition: "center",
-        display: "block",
-      }}
-      draggable="true"
-    />
-  );
-}
-
 /* =====================================
    App
 ===================================== */
@@ -201,7 +110,6 @@ function App() {
   const [keyword, setKeyword] = useState("");
 
   const [loading, setLoading] = useState(true);
-  const [imageMap, setImageMap] = useState({});
 
   // 歷史價格
   const [historyCard, setHistoryCard] = useState(null);
@@ -240,25 +148,11 @@ function App() {
 
       .then((data) => {
 
-        const cardData = Array.isArray(data) ? data : [];
-        setCards(cardData);
-
-        // Google Drive：卡名 → 卡圖 URL
-        fetch(`${API}?action=imageMap&t=${Date.now()}`, {
-          cache: "no-store",
-        })
-          .then((imageRes) => {
-            if (!imageRes.ok) throw new Error("圖片索引讀取失敗");
-            return imageRes.json();
-          })
-          .then((imageData) => {
-            if (imageData && typeof imageData === "object" && !Array.isArray(imageData)) {
-              setImageMap(imageData);
-            }
-          })
-          .catch((imageError) => {
-            console.warn("圖片索引讀取失敗，改用既有圖片路徑：", imageError);
-          });
+        setCards(
+          Array.isArray(data)
+            ? data
+            : []
+        );
 
         setLoading(false);
 
@@ -812,7 +706,7 @@ function App() {
 
             }}
 
-            placeholder="搜尋卡名、系列、角色、語言..."
+            placeholder="搜尋卡名、PSA 編號、系列、角色、語言..."
 
           />
 
@@ -1394,7 +1288,7 @@ function App() {
                 String(
                   card.title || ""
                 ).trim() ||
-                "鑑定收藏卡";
+                "PSA 鑑定收藏卡";
 
 
               const cert =
@@ -1487,33 +1381,64 @@ function App() {
 
                   <div
                     className="card-image"
+
                     style={{
                       position: "relative",
-                      width: "100%",
-                      aspectRatio: "63 / 88",
+                      height: "auto",
                       minHeight: 0,
-                      overflow: "hidden",
-                      borderRadius: "12px",
-                      background: "#f3f4f6",
+                      overflow: "visible",
                     }}
                   >
-                    {isSold ? (
-                      <img
-                        src="/images/sold.png"
-                        alt={card.name || "可可卡牌"}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          display: "block",
-                        }}
-                      />
-                    ) : (
-                      <CroppedCardImage
-                        src={`/images/${cert}.jpg`}
-                        alt={card.name || "可可卡牌"}
-                      />
-                    )}
+
+
+
+
+                    <img
+
+                      style={{
+                        position: "static",
+                        display: "block",
+                        width: "100%",
+                        height: "auto",
+                        maxWidth: "100%",
+                        maxHeight: "none",
+                        objectFit: "contain",
+                        objectPosition: "center",
+                      }}
+
+                      src={
+                        isSold
+                          ? "/images/sold.png"
+                          : `/images/${cert}.jpg`
+                      }
+
+                      alt={
+                        card.name ||
+                        "可可卡牌"
+                      }
+
+                      onError={(e) => {
+
+                        if (
+                          !e.currentTarget
+                            .dataset
+                            .fallback
+                        ) {
+
+                          e.currentTarget
+                            .dataset
+                            .fallback =
+                            "true";
+
+                          e.currentTarget.src =
+                            "/logo.png";
+
+                        }
+
+                      }}
+
+                    />
+
                   </div>
 
 
@@ -1566,7 +1491,7 @@ function App() {
                       </div>
                     )}
 
-                    {/* NEW 新入庫：放在圖片下方 */}
+                    {/* NEW 新入庫：放在圖片下方，不遮住 PSA 條碼 */}
                     {isNew && (
 
                       <div
@@ -1640,7 +1565,50 @@ function App() {
                     >
 
 
-                      {/* PSA／鑑定公司標籤：新版純卡圖頁面不顯示 */}
+                      {/* 公司 */}
+
+                      <span
+                        className="badge company"
+
+                        style={{
+                          background:
+                            "#ef4444",
+
+                          color:
+                            "#ffffff",
+
+                          fontWeight: 800,
+
+                          borderRadius:
+                            "999px",
+
+                          padding:
+                            "6px 10px",
+
+                          fontSize:
+                            "13px",
+
+                          lineHeight: 1,
+
+                          display:
+                            "inline-flex",
+
+                          alignItems:
+                            "center",
+
+                          justifyContent:
+                            "center",
+
+                          whiteSpace:
+                            "nowrap",
+
+                          boxSizing:
+                            "border-box",
+                        }}
+                      >
+                        {company}
+                      </span>
+
 
                       {/* 類型 */}
 
@@ -1686,9 +1654,76 @@ function App() {
 
                     <h2 className="card-name">
 
-                      <span>
-                        {card.name || "未命名卡片"}
-                      </span>
+                      {card.psa ? (
+
+                        <a
+                          href={card.psa}
+
+                          onClick={(event) => {
+                            event.stopPropagation();
+                          }}
+
+                          target="_blank"
+
+                          rel="noreferrer"
+
+                          className="card-name-link"
+
+                          style={{
+                            textDecoration:
+                              "none",
+
+                            color:
+                              "inherit",
+
+                            display:
+                              "inline-flex",
+
+                            alignItems:
+                              "center",
+
+                            justifyContent:
+                              "center",
+
+                            gap: "2px",
+                          }}
+                        >
+
+                          {card.name ||
+                            "未命名卡片"}
+
+
+                          <span
+                            className="card-link-icon"
+
+                            aria-label="查看卡片"
+
+                            style={{
+                              textDecoration:
+                                "none",
+
+                              display:
+                                "inline-block",
+
+                              lineHeight: 1,
+
+                              fontSize:
+                                "17px",
+                            }}
+                          >
+                            🔗
+                          </span>
+
+                        </a>
+
+                      ) : (
+
+                        <span>
+                          {card.name ||
+                            "未命名卡片"}
+                        </span>
+
+                      )}
 
                     </h2>
 
@@ -2315,6 +2350,15 @@ function App() {
                   {historyCard.name || "收藏卡"}
                 </h2>
 
+                <div
+                  style={{
+                    marginTop: "5px",
+                    fontSize: "13px",
+                    color: "#8b93a1",
+                  }}
+                >
+                  PSA {historyCard.cert || "-"}
+                </div>
               </div>
 
               <button
