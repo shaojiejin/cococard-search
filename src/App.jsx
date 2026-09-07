@@ -176,63 +176,117 @@ function App() {
 
 
   /* =====================================
-     搜尋
+     🔎 多筆搜尋
+
+     支援：
+     92342885 104862310 92342886
+     也支援換行、半形逗號、中文逗號。
+
+     多筆搜尋時，結果會依照「輸入編號的順序」排列。
   ===================================== */
+
+  const searchKeywords = keyword
+    .trim()
+    .toLowerCase()
+    .split(/[\s,，]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  const isMultiSearch = searchKeywords.length > 1;
+
+  const getSearchOrder = (card) => {
+    if (!isMultiSearch) {
+      return Infinity;
+    }
+
+    const fields = [
+      card.name,
+      card.cert,
+      card.type,
+      card.language,
+      card.status,
+      card.title,
+      card.company,
+    ];
+
+    const searchableText = fields
+      .map((value) => String(value || "").toLowerCase())
+      .join(" ");
+
+    const certText = String(card.cert || "").toLowerCase();
+
+    // PSA 編號優先按照輸入順序排列
+    const certIndex = searchKeywords.findIndex((text) =>
+      certText.includes(text)
+    );
+
+    if (certIndex !== -1) {
+      return certIndex;
+    }
+
+    // 其他欄位仍保留原本搜尋功能
+    const fieldIndex = searchKeywords.findIndex((text) =>
+      searchableText.includes(text)
+    );
+
+    return fieldIndex === -1
+      ? Infinity
+      : fieldIndex;
+  };
 
   const searchedCards = cards.filter((card) => {
 
-    const text =
-      keyword
-        .trim()
-        .toLowerCase();
-
-    if (!text) {
+    if (searchKeywords.length === 0) {
       return true;
     }
 
-    return (
+    return searchKeywords.some((text) => {
 
-      String(card.name || "")
-        .toLowerCase()
-        .includes(text)
+      return (
 
-      ||
+        String(card.name || "")
+          .toLowerCase()
+          .includes(text)
 
-      String(card.cert || "")
-        .toLowerCase()
-        .includes(text)
+        ||
 
-      ||
+        String(card.cert || "")
+          .toLowerCase()
+          .includes(text)
 
-      String(card.type || "")
-        .toLowerCase()
-        .includes(text)
+        ||
 
-      ||
+        String(card.type || "")
+          .toLowerCase()
+          .includes(text)
 
-      String(card.language || "")
-        .toLowerCase()
-        .includes(text)
+        ||
 
-      ||
+        String(card.language || "")
+          .toLowerCase()
+          .includes(text)
 
-      String(card.status || "")
-        .toLowerCase()
-        .includes(text)
+        ||
 
-      ||
+        String(card.status || "")
+          .toLowerCase()
+          .includes(text)
 
-      String(card.title || "")
-        .toLowerCase()
-        .includes(text)
+        ||
 
-      ||
+        String(card.title || "")
+          .toLowerCase()
+          .includes(text)
 
-      String(card.company || "")
-        .toLowerCase()
-        .includes(text)
+        ||
 
-    );
+        String(card.company || "")
+          .toLowerCase()
+          .includes(text)
+
+      );
+
+    });
 
   });
 
@@ -455,6 +509,17 @@ function App() {
         const bSold =
           String(b.status || "")
             .trim() === "售出";
+
+        // ⭐ 多筆搜尋時，優先按照輸入編號順序排列
+        // 同一個編號內才繼續套用原本的售出／促銷／排序規則。
+        if (isMultiSearch) {
+          const aSearchOrder = getSearchOrder(a);
+          const bSearchOrder = getSearchOrder(b);
+
+          if (aSearchOrder !== bSearchOrder) {
+            return aSearchOrder - bSearchOrder;
+          }
+        }
 
         // 售出永遠放最底
         if (aSold && !bSold) {
