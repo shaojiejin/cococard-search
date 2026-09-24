@@ -5,6 +5,60 @@ const API =
   "https://script.google.com/macros/s/AKfycbwfbvdW7QDgbSug7JWCtBQr0ZFDOdkg8_oOzbXF-jO1GAYHMBCRNWBMjKZfU69Ovmbu/exec";
 
 
+/* =====================================
+   判斷是否為新入庫
+   購入日期在最近 14 天內
+===================================== */
+
+function isNewArrival(purchaseDate) {
+  if (!purchaseDate) {
+    return false;
+  }
+
+  const value = String(purchaseDate).trim();
+
+  let date = null;
+  const match = value.match(
+    /^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/
+  );
+
+  if (match) {
+    date = new Date(
+      Number(match[1]),
+      Number(match[2]) - 1,
+      Number(match[3])
+    );
+  } else {
+    date = new Date(value);
+  }
+
+  if (!date || isNaN(date.getTime())) {
+    return false;
+  }
+
+  const today = new Date();
+
+  today.setHours(23, 59, 59, 999);
+
+  const fourteenDaysAgo = new Date(today);
+
+  fourteenDaysAgo.setDate(
+    today.getDate() - 14
+  );
+
+  fourteenDaysAgo.setHours(
+    0,
+    0,
+    0,
+    0
+  );
+
+  return (
+    date >= fourteenDaysAgo &&
+    date <= today
+  );
+}
+
 
 /* =====================================
    解析購入日期
@@ -45,6 +99,34 @@ function getPurchaseTime(card) {
 }
 
 
+
+/* =====================================
+   純卡圖裁切
+   - 只把原本 PSA slab 照片中的卡片區域
+     實際裁成新的圖片
+   - 因為 img.src 會變成裁切後的 data URL，
+     使用「另存圖片」時不會拿到原始整張 slab 圖
+===================================== */
+function CroppedCardImage({ src, alt }) {
+  /*
+   * ⚡ 手機防 Crash：
+   * 不再使用 Canvas + toDataURL。
+   * 直接用 CSS 顯示原始 slab 圖的卡片區域，
+   * 大幅降低手機 RAM / CPU 使用量。
+   */
+  return (
+    <div className="card-photo-crop" aria-hidden="true">
+      <img
+        src={src}
+        alt={alt || "可可卡牌"}
+        loading="lazy"
+        decoding="async"
+        draggable="true"
+      />
+    </div>
+  );
+}
+
 /* =====================================
    App
 ===================================== */
@@ -56,6 +138,7 @@ function App() {
   const [keyword, setKeyword] = useState("");
 
   const [loading, setLoading] = useState(true);
+  const [imageMap, setImageMap] = useState({});
 
   // 歷史價格
   const [historyCard, setHistoryCard] = useState(null);
@@ -68,6 +151,8 @@ function App() {
   // 篩選／排序
   const [typeFilter, setTypeFilter] = useState("全部");
 
+  // 遊戲分類（Google Sheet P 欄：遊戲類型）
+  const [gameFilter, setGameFilter] = useState("全部");
 
   const [sortKey, setSortKey] = useState("purchaseDate");
 
@@ -94,11 +179,25 @@ function App() {
 
       .then((data) => {
 
-        setCards(
-          Array.isArray(data)
-            ? data
-            : []
-        );
+        const cardData = Array.isArray(data) ? data : [];
+        setCards(cardData);
+
+        // Google Drive：卡名 → 卡圖 URL
+        fetch(`${API}?action=imageMap&t=${Date.now()}`, {
+          cache: "no-store",
+        })
+          .then((imageRes) => {
+            if (!imageRes.ok) throw new Error("圖片索引讀取失敗");
+            return imageRes.json();
+          })
+          .then((imageData) => {
+            if (imageData && typeof imageData === "object" && !Array.isArray(imageData)) {
+              setImageMap(imageData);
+            }
+          })
+          .catch((imageError) => {
+            console.warn("圖片索引讀取失敗，改用既有圖片路徑：", imageError);
+          });
 
         setLoading(false);
 
@@ -176,15 +275,20 @@ function App() {
 
 
   /* =====================================
+     搜尋
+  ===================================== */
+
+  /* =====================================
      🔎 多筆搜尋
 
      支援：
-     92342885 104862310 92342886
-     也支援換行、半形逗號、中文逗號。
+     - 空白分隔：92342885 104862310 92342886
+     - 換行分隔
+     - 半形逗號：92342885,104862310
+     - 中文逗號：92342885，104862310
 
-     多筆搜尋時，結果會依照「輸入編號的順序」排列。
+     多筆搜尋時，結果依照輸入編號順序排列。
   ===================================== */
-
   const searchKeywords = keyword
     .trim()
     .toLowerCase()
@@ -194,100 +298,52 @@ function App() {
 
   const isMultiSearch = searchKeywords.length > 1;
 
+  const searchableFields = (card) => [
+    card.name,
+    card.cert,
+    card.type,
+    card.language,
+    card.status,
+    card.title,
+    card.company,
+    card["遊戲類型"],
+    card.gameType,
+    card.game,
+  ].map((value) => String(value || "").toLowerCase());
+
   const getSearchOrder = (card) => {
-    if (!isMultiSearch) {
-      return Infinity;
-    }
+    if (!isMultiSearch) return Infinity;
 
-    const fields = [
-      card.name,
-      card.cert,
-      card.type,
-      card.language,
-      card.status,
-      card.title,
-      card.company,
-    ];
+    const fields = searchableFields(card);
+    const cert = String(card.cert || "").trim().toLowerCase();
 
-    const searchableText = fields
-      .map((value) => String(value || "").toLowerCase())
-      .join(" ");
-
-    const certText = String(card.cert || "").toLowerCase();
-
-    // PSA 編號優先按照輸入順序排列
-    const certIndex = searchKeywords.findIndex((text) =>
-      certText.includes(text)
+    // PSA 編號完全相同時，優先依輸入順序排列
+    const exactCertIndex = searchKeywords.findIndex(
+      (text) => cert === text
     );
 
-    if (certIndex !== -1) {
-      return certIndex;
+    if (exactCertIndex !== -1) {
+      return exactCertIndex;
     }
 
-    // 其他欄位仍保留原本搜尋功能
-    const fieldIndex = searchKeywords.findIndex((text) =>
-      searchableText.includes(text)
+    // 兼容部分編號搜尋與原本的卡名／系列等搜尋
+    const partialIndex = searchKeywords.findIndex((text) =>
+      fields.some((field) => field.includes(text))
     );
 
-    return fieldIndex === -1
-      ? Infinity
-      : fieldIndex;
+    return partialIndex === -1 ? Infinity : partialIndex;
   };
 
   const searchedCards = cards.filter((card) => {
-
     if (searchKeywords.length === 0) {
       return true;
     }
 
-    return searchKeywords.some((text) => {
+    const fields = searchableFields(card);
 
-      return (
-
-        String(card.name || "")
-          .toLowerCase()
-          .includes(text)
-
-        ||
-
-        String(card.cert || "")
-          .toLowerCase()
-          .includes(text)
-
-        ||
-
-        String(card.type || "")
-          .toLowerCase()
-          .includes(text)
-
-        ||
-
-        String(card.language || "")
-          .toLowerCase()
-          .includes(text)
-
-        ||
-
-        String(card.status || "")
-          .toLowerCase()
-          .includes(text)
-
-        ||
-
-        String(card.title || "")
-          .toLowerCase()
-          .includes(text)
-
-        ||
-
-        String(card.company || "")
-          .toLowerCase()
-          .includes(text)
-
-      );
-
-    });
-
+    return searchKeywords.some((text) =>
+      fields.some((field) => field.includes(text))
+    );
   });
 
 
@@ -376,45 +432,56 @@ function App() {
   };
 
   /* =====================================
-     成本價漲跌計算
+     今日漲跌計算
   ===================================== */
 
   const getPriceChange = (card) => {
-    const latest = getLatestPrice(card);
-    const cost = getCostPrice(card);
+    const latest = Number(card.latestPrice);
+    const yesterday = Number(card.yesterdayPrice);
 
     if (
       !Number.isFinite(latest) ||
-      !Number.isFinite(cost) ||
-      cost <= 0
+      !Number.isFinite(yesterday) ||
+      yesterday <= 0
     ) {
       return null;
     }
 
-    const change = latest - cost;
-    const percent = (change / cost) * 100;
+    const change = latest - yesterday;
+    const percent = (change / yesterday) * 100;
 
     return {
       change,
       percent,
-      cost,
-      latest,
     };
   };
 
 
   /* =====================================
-     先做搜尋＋類型＋成本價漲跌篩選
+     先做搜尋＋類型＋今日漲跌篩選
 
      這一層是「兩個區域的共同篩選結果」。
      然後再分別計算收藏／購買數量，
      所以切換區域時不會兩邊都顯示 295。
   ===================================== */
 
+  const typeFilteredByGame =
+    gameFilter === "全部"
+      ? searchedCards
+      : searchedCards.filter((card) => {
+          const gameType = String(
+            card["遊戲類型"] ??
+            card.gameType ??
+            card.game ??
+            ""
+          ).trim();
+          return gameType === gameFilter;
+        });
+
   const baseFilteredCards =
     typeFilter === "全部"
-      ? searchedCards
-      : searchedCards.filter(
+      ? typeFilteredByGame
+      : typeFilteredByGame.filter(
           (card) =>
             String(card.type || "").trim() ===
             typeFilter
@@ -457,6 +524,27 @@ function App() {
         cards
           .map((card) =>
             String(card.type || "").trim()
+          )
+          .filter(Boolean)
+      )
+    ).sort((a, b) =>
+      a.localeCompare(b, "zh-Hant")
+    ),
+  ];
+
+  // Google Sheet P 欄「遊戲類型」
+  const gameOptions = [
+    "全部",
+    ...Array.from(
+      new Set(
+        cards
+          .map((card) =>
+            String(
+              card["遊戲類型"] ??
+              card.gameType ??
+              card.game ??
+              ""
+            ).trim()
           )
           .filter(Boolean)
       )
@@ -510,18 +598,18 @@ function App() {
           String(b.status || "")
             .trim() === "售出";
 
-        // ⭐ 多筆搜尋時，優先按照輸入編號順序排列
-        // 同一個編號內才繼續套用原本的售出／促銷／排序規則。
+        // ⭐ 多筆搜尋時，完全依照輸入順序顯示
+        // 讓使用者貼上的 PSA 編號順序不會被售出／促銷／價格排序打亂。
         if (isMultiSearch) {
-          const aSearchOrder = getSearchOrder(a);
-          const bSearchOrder = getSearchOrder(b);
+          const aOrder = getSearchOrder(a);
+          const bOrder = getSearchOrder(b);
 
-          if (aSearchOrder !== bSearchOrder) {
-            return aSearchOrder - bSearchOrder;
+          if (aOrder !== bOrder) {
+            return aOrder - bOrder;
           }
         }
 
-        // 售出永遠放最底
+        // 單筆搜尋仍維持原本規則：售出永遠放最底
         if (aSold && !bSold) {
           return 1;
         }
@@ -600,6 +688,7 @@ function App() {
   const clearAllFilters = () => {
     setKeyword("");
     setTypeFilter("全部");
+    setGameFilter("全部");
     setSectionFilter("購買");
     setSortKey("purchaseDate");
     setSortDirection("desc");
@@ -670,46 +759,6 @@ function App() {
         String(card.status || "").trim() !== "售出"
     ).length;
 
-  /* =====================================
-     ⭐ 總漲／總跌金額
-     只計算目前畫面中的在庫卡片。
-     以成本價 → 最新成交價計算。
-  ===================================== */
-
-  const totalUpAmount = visibleCards.reduce(
-    (total, card) => {
-      if (
-        String(card.status || "").trim() === "售出"
-      ) {
-        return total;
-      }
-
-      const change = getPriceChange(card);
-
-      return change && change.change > 0
-        ? total + change.change
-        : total;
-    },
-    0
-  );
-
-  const totalDownAmount = visibleCards.reduce(
-    (total, card) => {
-      if (
-        String(card.status || "").trim() === "售出"
-      ) {
-        return total;
-      }
-
-      const change = getPriceChange(card);
-
-      return change && change.change < 0
-        ? total + Math.abs(change.change)
-        : total;
-    },
-    0
-  );
-
 
   /* =====================================
      畫面
@@ -759,7 +808,7 @@ function App() {
 
             }}
 
-            placeholder="搜尋卡名、PSA 編號、系列、角色、語言..."
+            placeholder="搜尋卡名、系列、角色、語言..."
 
           />
 
@@ -855,6 +904,34 @@ function App() {
 
         </div>
 
+        {/* 遊戲分類：Google Sheet P 欄「遊戲類型」 */}
+        <select
+          value={gameFilter}
+          onChange={(e) =>
+            setGameFilter(e.target.value)
+          }
+          style={{
+            height: "42px",
+            padding: "0 14px",
+            border: "1px solid #dfe3eb",
+            borderRadius: "12px",
+            background: "#ffffff",
+            color: "#555467",
+            fontSize: "15px",
+            fontWeight: 700,
+            outline: "none",
+            cursor: "pointer",
+            boxShadow:
+              "0 3px 10px rgba(55,65,90,0.06)",
+          }}
+        >
+          {gameOptions.map((game) => (
+            <option key={game} value={game}>
+              遊戲：{game}
+            </option>
+          ))}
+        </select>
+
         {/* 類型篩選 */}
         <select
           value={typeFilter}
@@ -883,36 +960,6 @@ function App() {
           ))}
         </select>
 
-
-        {/* 成本價漲跌幅排序 */}
-        <button
-          type="button"
-          onClick={() => handleSort("priceChangePercent")}
-          style={{
-            height: "42px",
-            padding: "0 14px",
-            border:
-              sortKey === "priceChangePercent"
-                ? "1px solid #2874df"
-                : "1px solid #dfe3eb",
-            borderRadius: "12px",
-            background:
-              sortKey === "priceChangePercent"
-                ? "#eef5ff"
-                : "#ffffff",
-            color:
-              sortKey === "priceChangePercent"
-                ? "#1f5fbf"
-                : "#555467",
-            fontSize: "15px",
-            fontWeight: 700,
-            cursor: "pointer",
-            boxShadow:
-              "0 3px 10px rgba(55,65,90,0.06)",
-          }}
-        >
-          成本價漲跌幅{sortArrow("priceChangePercent")}
-        </button>
 
         {/* 編號 */}
         <button
@@ -944,67 +991,6 @@ function App() {
           編號{sortArrow("cert")}
         </button>
 
-
-        {/* 近十筆成交價 */}
-        <button
-          type="button"
-          onClick={() => handleSort("avgPrice")}
-          style={{
-            height: "42px",
-            padding: "0 14px",
-            border:
-              sortKey === "avgPrice"
-                ? "1px solid #2874df"
-                : "1px solid #dfe3eb",
-            borderRadius: "12px",
-            background:
-              sortKey === "avgPrice"
-                ? "#eef5ff"
-                : "#ffffff",
-            color:
-              sortKey === "avgPrice"
-                ? "#1f5fbf"
-                : "#555467",
-            fontSize: "15px",
-            fontWeight: 700,
-            cursor: "pointer",
-            boxShadow:
-              "0 3px 10px rgba(55,65,90,0.06)",
-          }}
-        >
-          近十筆成交價{sortArrow("avgPrice")}
-        </button>
-
-
-        {/* 最新成交價 */}
-        <button
-          type="button"
-          onClick={() => handleSort("latestPrice")}
-          style={{
-            height: "42px",
-            padding: "0 14px",
-            border:
-              sortKey === "latestPrice"
-                ? "1px solid #2874df"
-                : "1px solid #dfe3eb",
-            borderRadius: "12px",
-            background:
-              sortKey === "latestPrice"
-                ? "#eef5ff"
-                : "#ffffff",
-            color:
-              sortKey === "latestPrice"
-                ? "#1f5fbf"
-                : "#555467",
-            fontSize: "15px",
-            fontWeight: 700,
-            cursor: "pointer",
-            boxShadow:
-              "0 3px 10px rgba(55,65,90,0.06)",
-          }}
-        >
-          最新成交價{sortArrow("latestPrice")}
-        </button>
 
         {/* ⭐ 全部條件清除 */}
         <button
@@ -1048,7 +1034,7 @@ function App() {
             ? "近十筆成交價"
             : sortKey === "latestPrice"
             ? "最新成交價"
-            : "成本價漲跌幅"
+            : "今日漲跌幅"
         }{" "}
         {sortKey !== "purchaseDate" &&
           (sortDirection === "asc"
@@ -1078,90 +1064,6 @@ function App() {
       ) : (
 
         <>
-
-
-          {/* =====================================
-              ⭐ 總漲／總跌金額
-          ===================================== */}
-
-          <div
-            style={{
-              width: "min(100%, 1100px)",
-              margin: "4px auto 18px",
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(2, minmax(0, 1fr))",
-              gap: "10px",
-              padding: "0 10px",
-              boxSizing: "border-box",
-            }}
-          >
-            <div
-              style={{
-                border: "1px solid #fecaca",
-                background:
-                  "linear-gradient(135deg, #fff7f7 0%, #fff1f2 100%)",
-                borderRadius: "14px",
-                padding: "12px 16px",
-                textAlign: "center",
-                boxSizing: "border-box",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "13px",
-                  color: "#b91c1c",
-                  fontWeight: 800,
-                  marginBottom: "3px",
-                }}
-              >
-                🔴 總漲金額
-              </div>
-              <div
-                style={{
-                  fontSize: "24px",
-                  color: "#ef4444",
-                  fontWeight: 900,
-                  lineHeight: 1.2,
-                }}
-              >
-                +{formatPrice(totalUpAmount)}
-              </div>
-            </div>
-
-            <div
-              style={{
-                border: "1px solid #bbf7d0",
-                background:
-                  "linear-gradient(135deg, #f6fff8 0%, #ecfdf5 100%)",
-                borderRadius: "14px",
-                padding: "12px 16px",
-                textAlign: "center",
-                boxSizing: "border-box",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "13px",
-                  color: "#15803d",
-                  fontWeight: 800,
-                  marginBottom: "3px",
-                }}
-              >
-                🟢 總跌金額
-              </div>
-              <div
-                style={{
-                  fontSize: "24px",
-                  color: "#16a34a",
-                  fontWeight: 900,
-                  lineHeight: 1.2,
-                }}
-              >
-                -{formatPrice(totalDownAmount)}
-              </div>
-            </div>
-          </div>
 
 
           {/* =====================================
@@ -1425,12 +1327,37 @@ function App() {
                 String(
                   card.title || ""
                 ).trim() ||
-                "PSA 鑑定收藏卡";
+                "鑑定收藏卡";
 
 
               const cert =
                 card.cert || "-";
-/* 成本價漲跌 */
+
+
+              /* 新入庫 */
+
+              const purchaseDate =
+                card.purchaseDate ||
+                card["購入日期"] ||
+                card.purchase_date ||
+                card.purchasedDate ||
+                "";
+
+
+              const isNew =
+                !isSold &&
+                isNewArrival(
+                  purchaseDate
+                );
+
+              /* ⭐ 促銷中：
+                 最新成交價 >= 成本價 × 1.15 */
+              const isPromo =
+                !isSold &&
+                isPromotion(card);
+
+
+              /* 今日漲跌 */
 
               const priceChange =
                 !isSold
@@ -1462,7 +1389,7 @@ function App() {
                       : ""
                   }`}
 
-                  key={`${cert}-${card.name}`}
+                  key={`${cert}-${card.name}-${purchaseDate}`}
 
                   onClick={() => openHistory(card)}
 
@@ -1482,6 +1409,12 @@ function App() {
 
                   style={{
                     cursor: "pointer",
+                    height: "700px",
+                    minHeight: "700px",
+                    maxHeight: "700px",
+                    display: "flex",
+                    flexDirection: "column",
+                    boxSizing: "border-box",
                   }}
 
                 >
@@ -1493,64 +1426,33 @@ function App() {
 
                   <div
                     className="card-image"
-
                     style={{
                       position: "relative",
-                      height: "auto",
+                      width: "100%",
+                      aspectRatio: "63 / 88",
                       minHeight: 0,
-                      overflow: "visible",
+                      overflow: "hidden",
+                      borderRadius: "12px",
+                      background: "#f3f4f6",
                     }}
                   >
-
-
-
-
-                    <img
-
-                      style={{
-                        position: "static",
-                        display: "block",
-                        width: "100%",
-                        height: "auto",
-                        maxWidth: "100%",
-                        maxHeight: "none",
-                        objectFit: "contain",
-                        objectPosition: "center",
-                      }}
-
-                      src={
-                        isSold
-                          ? "/images/sold.png"
-                          : `/images/${cert}.jpg`
-                      }
-
-                      alt={
-                        card.name ||
-                        "可可卡牌"
-                      }
-
-                      onError={(e) => {
-
-                        if (
-                          !e.currentTarget
-                            .dataset
-                            .fallback
-                        ) {
-
-                          e.currentTarget
-                            .dataset
-                            .fallback =
-                            "true";
-
-                          e.currentTarget.src =
-                            "/logo.png";
-
-                        }
-
-                      }}
-
-                    />
-
+                    {isSold ? (
+                      <img
+                        src="/images/sold.png"
+                        alt={card.name || "可可卡牌"}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          display: "block",
+                        }}
+                      />
+                    ) : (
+                      <CroppedCardImage
+                        src={`/images/${cert}.jpg`}
+                        alt={card.name || "可可卡牌"}
+                      />
+                    )}
                   </div>
 
 
@@ -1558,8 +1460,110 @@ function App() {
                       卡片資訊
                   ================================= */}
 
-                  <div className="card-info">
-{/* =================================
+                  <div
+                    className="card-info"
+                    style={{
+                      flex: 1,
+                      minHeight: 0,
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+
+                    {/* 🔥 促銷中：放在圖片下方，並優先顯示 */}
+                    {isPromo && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          margin: "8px auto 4px",
+                          padding: "5px 13px",
+                          width: "fit-content",
+                          background:
+                            "linear-gradient(135deg, #ff5a5f 0%, #e53935 100%)",
+                          border: "2px solid #ffffff",
+                          borderRadius: "9px",
+                          color: "#ffffff",
+                          boxShadow:
+                            "0 2px 7px rgba(220,38,38,0.25)",
+                          lineHeight: 1,
+                          pointerEvents: "none",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 1000,
+                            letterSpacing: "0.3px",
+                          }}
+                        >
+                          🔥
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 900,
+                            marginLeft: "4px",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          促銷中
+                        </span>
+                      </div>
+                    )}
+
+                    {/* NEW 新入庫：放在圖片下方 */}
+                    {isNew && (
+
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          margin: "8px auto 4px",
+                          padding: "5px 12px",
+                          width: "fit-content",
+                          background:
+                            "linear-gradient(135deg, #FFD84D 0%, #FFBE18 100%)",
+                          border: "2px solid #FFFFFF",
+                          borderRadius: "9px",
+                          color: "#174A91",
+                          boxShadow:
+                            "0 2px 6px rgba(0,0,0,0.16)",
+                          lineHeight: 1,
+                          pointerEvents: "none",
+                        }}
+                      >
+
+                        <span
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 1000,
+                            letterSpacing: "0.3px",
+                          }}
+                        >
+                          NEW!
+                        </span>
+
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 900,
+                            marginLeft: "5px",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          新入庫
+                        </span>
+
+                      </div>
+
+                    )}
+
+
+
+                    {/* =================================
                         標籤
                     ================================= */}
 
@@ -1583,50 +1587,7 @@ function App() {
                     >
 
 
-                      {/* 公司 */}
-
-                      <span
-                        className="badge company"
-
-                        style={{
-                          background:
-                            "#ef4444",
-
-                          color:
-                            "#ffffff",
-
-                          fontWeight: 800,
-
-                          borderRadius:
-                            "999px",
-
-                          padding:
-                            "6px 10px",
-
-                          fontSize:
-                            "13px",
-
-                          lineHeight: 1,
-
-                          display:
-                            "inline-flex",
-
-                          alignItems:
-                            "center",
-
-                          justifyContent:
-                            "center",
-
-                          whiteSpace:
-                            "nowrap",
-
-                          boxSizing:
-                            "border-box",
-                        }}
-                      >
-                        {company}
-                      </span>
-
+                      {/* PSA／鑑定公司標籤：新版純卡圖頁面不顯示 */}
 
                       {/* 類型 */}
 
@@ -1672,79 +1633,63 @@ function App() {
 
                     <h2 className="card-name">
 
-                      {card.psa ? (
-
-                        <a
-                          href={card.psa}
-
-                          onClick={(event) => {
-                            event.stopPropagation();
-                          }}
-
-                          target="_blank"
-
-                          rel="noreferrer"
-
-                          className="card-name-link"
-
-                          style={{
-                            textDecoration:
-                              "none",
-
-                            color:
-                              "inherit",
-
-                            display:
-                              "inline-flex",
-
-                            alignItems:
-                              "center",
-
-                            justifyContent:
-                              "center",
-
-                            gap: "2px",
-                          }}
-                        >
-
-                          {card.name ||
-                            "未命名卡片"}
-
-
-                          <span
-                            className="card-link-icon"
-
-                            aria-label="查看卡片"
-
-                            style={{
-                              textDecoration:
-                                "none",
-
-                              display:
-                                "inline-block",
-
-                              lineHeight: 1,
-
-                              fontSize:
-                                "17px",
-                            }}
-                          >
-                            🔗
-                          </span>
-
-                        </a>
-
-                      ) : (
-
-                        <span>
-                          {card.name ||
-                            "未命名卡片"}
-                        </span>
-
-                      )}
+                      <span>
+                        {card.name || "未命名卡片"}
+                      </span>
 
                     </h2>
 
+
+                    {/* =================================
+                        鞋店成交頁連結
+                        放在卡名與英文鑑定名稱之間
+                    ================================= */}
+
+                    {!isSold && (
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          minHeight: "34px",
+                          margin: "0 auto 2px",
+                        }}
+                      >
+                        {card.shopUrl ? (
+                          <a
+                            onClick={(event) => {
+                              event.stopPropagation();
+                            }}
+                            href={card.shopUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              color: "#2456a6",
+                              fontSize: "13px",
+                              fontWeight: 700,
+                              textDecoration: "none",
+                              padding: "5px 9px",
+                              borderRadius: "8px",
+                              background: "#f4f8ff",
+                              border: "1px solid #d8e5f7",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            👟 查看鞋店成交價格 ↗
+                          </a>
+                        ) : (
+                          <span
+                            style={{
+                              color: "#a1a8b5",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                            }}
+                          >
+                            鞋店成交頁暫無連結
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* =================================
                         鑑定名稱
@@ -1810,36 +1755,6 @@ function App() {
 
 
                     {/* =================================
-                        ⭐ 成本價
-                        直接標在每張卡片資訊區最上方
-                    ================================= */}
-
-                    {Number.isFinite(getCostPrice(card)) && (
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          width: "fit-content",
-                          margin: "8px auto 6px",
-                          padding: "6px 13px",
-                          borderRadius: "999px",
-                          border: "1px solid #d4a72c",
-                          background:
-                            "linear-gradient(135deg, #fff9df 0%, #fff3bd 100%)",
-                          color: "#8a6500",
-                          fontSize: "15px",
-                          fontWeight: 900,
-                          lineHeight: 1.2,
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        💰 成本價&nbsp; {formatPrice(getCostPrice(card))}
-                      </div>
-                    )}
-
-
-                    {/* =================================
                         售出
                     ================================= */}
 
@@ -1853,428 +1768,6 @@ function App() {
 
                     )}
 
-
-                    {/* =================================
-                        鞋店成交價
-                    ================================= */}
-
-                    {!isSold && (
-
-                      <div
-                        className="price-box"
-
-                        style={{
-                          minHeight:
-                            "210px",
-
-                          height:
-                            "210px",
-
-                          boxSizing:
-                            "border-box",
-
-                          overflow:
-                            "hidden",
-
-                          display:
-                            "flex",
-
-                          flexDirection:
-                            "column",
-
-                          justifyContent:
-                            "flex-start",
-
-                          padding:
-                            "10px 12px",
-
-                          gap:
-                            "2px",
-                        }}
-                      >
-
-
-                        {/* 標題 */}
-
-                        <div
-                          className="price-company"
-
-                          style={{
-                            minHeight:
-                              "30px",
-
-                            display:
-                              "flex",
-
-                            alignItems:
-                              "center",
-
-                            justifyContent:
-                              "center",
-
-                            textAlign:
-                              "center",
-
-                            color:
-                              "#2456a6",
-
-                            fontWeight:
-                              800,
-
-                            fontSize:
-                              "18px",
-
-                            lineHeight:
-                              "1.4",
-
-                            whiteSpace:
-                              "nowrap",
-                          }}
-                        >
-                          👟 鞋店成交價
-                        </div>
-
-
-                        {/* 近十筆成交價 */}
-
-                        <div
-                          className="price-row"
-
-                          style={{
-                            display:
-                              "flex",
-
-                            justifyContent:
-                              "space-between",
-
-                            alignItems:
-                              "center",
-
-                            gap:
-                              "8px",
-
-                            width:
-                              "100%",
-
-                            minHeight:
-                              "34px",
-
-                            boxSizing:
-                              "border-box",
-                          }}
-                        >
-
-                          <span
-                            style={{
-                              whiteSpace:
-                                "nowrap",
-
-                              fontSize:
-                                "15px",
-
-                              color:
-                                "#7d8494",
-
-                              fontWeight:
-                                700,
-                            }}
-                          >
-                            近十筆成交價
-                          </span>
-
-
-                          <strong
-                            style={{
-                              whiteSpace:
-                                "nowrap",
-
-                              fontSize:
-                                "20px",
-
-                              color:
-                                "#183b77",
-
-                              fontWeight:
-                                900,
-                            }}
-                          >
-                            {formatPrice(
-                              card.avgPrice
-                            )}
-                          </strong>
-
-                        </div>
-
-
-                        {/* 分隔線 */}
-
-                        <div
-                          style={{
-                            width:
-                              "100%",
-
-                            height:
-                              "1px",
-
-                            background:
-                              "#dbe4f2",
-
-                            flexShrink:
-                              0,
-                          }}
-                        />
-
-
-                        {/* 最新 */}
-
-                        <div
-                          className="price-row"
-
-                          style={{
-                            display:
-                              "flex",
-
-                            justifyContent:
-                              "space-between",
-
-                            alignItems:
-                              "center",
-
-                            gap:
-                              "8px",
-
-                            width:
-                              "100%",
-
-                            minHeight:
-                              "34px",
-
-                            boxSizing:
-                              "border-box",
-                          }}
-                        >
-
-                          <span
-                            style={{
-                              whiteSpace:
-                                "nowrap",
-
-                              fontSize:
-                                "15px",
-
-                              color:
-                                "#7d8494",
-
-                              fontWeight:
-                                700,
-                            }}
-                          >
-                            最新
-                          </span>
-
-
-                          <strong
-                            style={{
-                              whiteSpace:
-                                "nowrap",
-
-                              fontSize:
-                                "20px",
-
-                              color:
-                                "#183b77",
-
-                              fontWeight:
-                                900,
-                            }}
-                          >
-                            {formatPrice(
-                              card.latestPrice
-                            )}
-                          </strong>
-
-                        </div>
-
-
-                        {/* =================================
-                            成本價漲跌
-                        ================================= */}
-
-                        {priceChange && (
-
-                          <div
-                            style={{
-                              display:
-                                "flex",
-
-                              justifyContent:
-                                "center",
-
-                              alignItems:
-                                "center",
-
-                              gap:
-                                "6px",
-
-                              minHeight:
-                                "28px",
-
-                              marginTop:
-                                "2px",
-
-                              marginBottom:
-                                "2px",
-
-                              fontSize:
-                                "14px",
-
-                              fontWeight:
-                                800,
-
-                              whiteSpace:
-                                "nowrap",
-
-                              color:
-                                isUp
-                                  ? "#ef4444"
-                                  : isDown
-                                  ? "#16a34a"
-                                  : "#8b93a1",
-                            }}
-                          >
-
-                            <span>
-                              {isUp
-                                ? "🔴 成本"
-                                : isDown
-                                ? "🟢 成本"
-                                : "⚪ 成本"}
-                            </span>
-
-
-                            <span>
-                              {priceChange.change > 0 ? "+$" : priceChange.change < 0 ? "-$" : "$"}
-                              {Math.round(Math.abs(priceChange.change)).toLocaleString("en-US")}
-
-                            </span>
-
-
-                            <span>
-                              {priceChange.percent > 0 ? "+" : ""}
-                              {priceChange.percent.toFixed(2)}%
-                            </span>
-
-                          </div>
-
-                        )}
-
-
-                        {/* 第一次沒有昨日資料 */}
-
-                        {!priceChange && (
-
-                          <div
-                            style={{
-                              minHeight:
-                                "28px",
-
-                              display:
-                                "flex",
-
-                              alignItems:
-                                "center",
-
-                              justifyContent:
-                                "center",
-
-                              fontSize:
-                                "12px",
-
-                              color:
-                                "#a1a8b5",
-
-                              whiteSpace:
-                                "nowrap",
-                            }}
-                          >
-                            成本價漲跌：尚無成本價資料
-                          </div>
-
-                        )}
-
-
-                        {/* 查看成交紀錄 */}
-
-                        {card.shopUrl ? (
-
-                          <a
-                            className="button"
-
-                            onClick={(event) => {
-                              event.stopPropagation();
-                            }}
-
-                            href={
-                              card.shopUrl
-                            }
-
-                            target="_blank"
-
-                            rel="noreferrer"
-
-                            style={{
-                              background:
-                                "#16a34a",
-
-                              margin:
-                                "0",
-
-                              minHeight:
-                                "42px",
-
-                              height:
-                                "42px",
-
-                              borderRadius:
-                                "11px",
-
-                              display:
-                                "flex",
-
-                              alignItems:
-                                "center",
-
-                              justifyContent:
-                                "center",
-                            }}
-                          >
-                            查看成交紀錄
-                          </a>
-
-                        ) : (
-
-                          <div
-                            className="button disabled"
-
-                            style={{
-                              margin:
-                                "0",
-
-                              minHeight:
-                                "42px",
-
-                              height:
-                                "42px",
-                            }}
-                          >
-                            暫時無資訊
-                          </div>
-
-                        )}
-
-                      </div>
-
-                    )}
 
                   </div>
 
@@ -2386,15 +1879,6 @@ function App() {
                   {historyCard.name || "收藏卡"}
                 </h2>
 
-                <div
-                  style={{
-                    marginTop: "5px",
-                    fontSize: "13px",
-                    color: "#8b93a1",
-                  }}
-                >
-                  PSA {historyCard.cert || "-"}
-                </div>
               </div>
 
               <button
